@@ -1,0 +1,8 @@
+build
+deploy
+packages
+pubspec.lock
+.DS_Store
+.settings
+.project
+.pub
