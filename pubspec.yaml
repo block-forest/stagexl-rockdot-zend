@@ -1,0 +1,10 @@
+name: stafexl_rockdot_zend
+version: 0.1.0
+author: Nils Döhring <nilsdoehring@gmail.com>
+description: Zend Backend of Rockdot for StageXL/Dart.
+homepage: https://github.com/blockforest/stagexl-rockdot-zend
+environment:
+  sdk: '>=1.6.0-dev' 
+dependencies:
+  args: any
+  path: any 
