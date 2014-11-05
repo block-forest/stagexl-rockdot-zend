@@ -2,124 +2,91 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart';
 
-final String TEMPLATE_DIR = "bin/template";
-const String TEMPLATE_ASSET_FILE = "assets.dart.tpl";
+const String DEFAULT_DART_PACKAGE = "autogen";
+const String DEFAULT_AS_PACKAGE = "";
+const String DEFAULT_BUILD_DIR = "build";
+const String DEFAULT_TARGET_DIR = "deploy";
 
-const String PACKAGE_REPLACE_STRING = "@package@";
-const String GETTER_REPLACE_STRING = "@getter@";
-const String MAPENTRY_REPLACE_STRING = "@entry@";
-
-const String ASSETNAME_REPLACE_STRING = "@asset@";
-const String ASSETTYPE_REPLACE_STRING = "@type@";
-
-const String DEFAULT_SOURCE_DIR = "web/assets";
-const String DEFAULT_TARGET_DIR = "lib/src/bootstrap";
-const String DEFAULT_TARGET_FILE = "assets.dart";
-
-String assetSourceDir;
-String assetTargetFile = DEFAULT_TARGET_FILE;
-
-String packageName;
-
+String source_basedir = Platform.script.toFilePath();
+String target_basedir;
 
 void main(List args) {
 
   _setupArgs(args);
-  
-  if(assetSourceDir == DEFAULT_SOURCE_DIR){
-    print("Defaulting to $DEFAULT_SOURCE_DIR as source directory");
-  }
-  
-  packageName = _getPackageNameFromPubspec();
-  
-  //add const to events
-  _scanSource();
-  
-  
-  print("Done. You can now access Assets like this: \n\tBitmapData bmd = Assets.assetname \n\tSound snd = Assets.assetname");
-  
-}
 
-void _scanSource() {
   
-  String imageGetter = '''
-  static BitmapData get @asset@ {
-    return _singleton.mgr.getBitmapData("@asset@");
+  //copy zend files
+  Directory binDir = new Directory(join(source_basedir, "source", "server"));
+  if (binDir.existsSync()) {
+    binDir.listSync(recursive: true, followLinks: false).forEach((FileSystemEntity entity) {
+      if (FileSystemEntity.typeSync(entity.path) == FileSystemEntityType.FILE) {
+        _convert(entity.path);
+      }
+    });
+  } else {
+    print("Tried to find Server sources here, but didn't succeed: ${binDir.path}");
+    exit(1);
   }
-''';
-  String soundGetter = '''
-  static Sound get @asset@ {
-    return _singleton.mgr.getSound("@asset@");
-  }
-''';
   
-  String imageEntry = '_singleton.mgr.addBitmapData("@asset@", "assets/@asset@.@type@");\n\t\t';
-  String soundEntry = '_singleton.mgr.addSound("@asset@", "assets/@asset@.@type@");\n\t\t';
-  
-  String generatedGetters = "";
-  String generatedEntries = "";
-  
-  
-  /* iterate over source path, grab *.as files */
-    Directory sourceDir = new Directory(assetSourceDir);
-    if (sourceDir.existsSync()) {
-      sourceDir.listSync(recursive: false, followLinks: false).forEach((FileSystemEntity entity) {
-        if (FileSystemEntity.typeSync(entity.path) == FileSystemEntityType.FILE) {
-          String ext = extension(entity.path).toLowerCase().substring(1);
-          String baseName = basenameWithoutExtension(entity.path).toLowerCase();
-          print(baseName);
-          print(ext);
-          if(ext == "jpg" || ext == "png"){
-            generatedGetters += imageGetter.replaceAll(ASSETNAME_REPLACE_STRING, baseName);
-            generatedEntries += imageEntry
-                                      .replaceAll(ASSETNAME_REPLACE_STRING, baseName)
-                                      .replaceAll(ASSETTYPE_REPLACE_STRING, ext);
-          }
-          if(ext == "mp3"){
-            generatedGetters += imageGetter.replaceAll(ASSETNAME_REPLACE_STRING, baseName);
-            generatedEntries += soundEntry
-                                       .replaceAll(ASSETNAME_REPLACE_STRING, baseName)
-                                       .replaceAll(ASSETTYPE_REPLACE_STRING, ext);
-          }
-        }
-      });
-      _createAssetFile(generatedGetters, generatedEntries);
-    } else {
-      print("The directory that was provided as source directory does not exist: $assetSourceDir");
-      exit(1);
-    }
-}
+  //copy properties files
 
-/// Adds the newly created library as dependency to the project's root pubspec.yaml.
-String _getPackageNameFromPubspec() {
-  File pubspecRootFile = new File('pubspec.yaml').absolute;
-  String pubspecRootFileContent = pubspecRootFile.readAsStringSync();
-  return new RegExp("name\\s*:\\s*(\\w+)").firstMatch(pubspecRootFileContent).group(1);
+
+  //copy files from $DEFAULT_BUILD_DIR
+
+  Directory buildDir = new Directory(DEFAULT_BUILD_DIR);
+  if (buildDir.existsSync()) {
+
+  } else {
+    print("Did you build your project?");
+    exit(1);
+  }
 }
 
 
-/// Copies Screen template file from [TEMPLATE_DIR] to [DIR_SCREEN].
-/// During the process, all occurences of [GETTER_REPLACE_STRING], [MAPENTRY_REPLACE_STRING] and [PACKAGE_REPLACE_STRING] are replaced.
-void _createAssetFile(String getters, String mapEntries) {
-  File file = new File("$TEMPLATE_DIR/$TEMPLATE_ASSET_FILE");
-  String fileContent = file.readAsStringSync();
- 
-  fileContent = fileContent.replaceAll(new RegExp(GETTER_REPLACE_STRING), getters);
-  fileContent = fileContent.replaceAll(new RegExp(MAPENTRY_REPLACE_STRING), mapEntries);
-  fileContent = fileContent.replaceAll(new RegExp(PACKAGE_REPLACE_STRING), packageName);
+/// Takes a File path, e.g. bin/examples/wonderfl/xmas/StarUnit.as, and writes it to
+/// the output directory provided, e.g. lib/autogen/src/wonderfl/xmas/star_unit.dart.
+/// During the process, excessive RegExp magic is applied.
+void _convert(String filePath) {
 
-  new File(join(DEFAULT_TARGET_DIR, "$assetTargetFile"))
+  //e.g. bin/examples/wonderfl/xmas/StarUnit.as
+  //print("asFilePath: $asFilePath");
+
+  File file = new File(filePath);
+
+  String fileContents = file.readAsStringSync();
+  String dartFileContents = _applyMagic(fileContents);
+
+  //Write new file
+  new File(join(target_basedir, filePath)).absolute
       ..createSync(recursive: true)
-      ..writeAsStringSync(fileContent);
+      ..writeAsStringSync(dartFileContents);
+
+}
+
+/// Applies magic to an ActionScript file String, converting it to almost error free Dart.
+/// Note that the focus lies on the conversion of the Syntax tree and the most obvious
+/// differences in the respective API's.
+String _applyMagic(String f) {
+
+  //read all properties files
+
+  
+  // replace package declaration
+  //f = f.replaceAllMapped(new RegExp("(\\s*)package\\s+[a-z0-9.]+\\s*\\{"), (Match m) => "${m[1]} part of $dart_package_name;");
+  // remove closing bracket at end of class
+  //f = f.replaceAll(new RegExp("\\}\\s*\$"), "");
+
+  return f;
 }
 
 /// Manages the script's arguments and provides instructions and defaults for the --help option.
 void _setupArgs(List args) {
   ArgParser argParser = new ArgParser();
-  
-  argParser.addOption('sourcedir', abbr: 's', defaultsTo: DEFAULT_SOURCE_DIR, help: 'The source directory where to search the assets.', valueHelp: 'sourcedir', callback: (_sourceDir) {
-    assetSourceDir = _sourceDir;
+
+  argParser.addOption('target', abbr: 't', defaultsTo: DEFAULT_TARGET_DIR, help: 'The path (relative!) the generated Dart package will be written to. Usually, your Dart project\'s \'lib\' directory.', valueHelp: 'target', callback: (_target_basedir) {
+    target_basedir = _target_basedir;
   });
+
 
   argParser.addFlag('help', negatable: false, help: 'Displays the help.', callback: (help) {
     if (help) {
