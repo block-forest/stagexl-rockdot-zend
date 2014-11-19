@@ -1,0 +1,28 @@
+<?php 
+	$configuration = Zend_Registry::get('Application_Config');
+	$rckdt_registry = Rockdot_Registry::getInstance();
+?>
+<canvas id="stage" style="stage-full-window" tabindex="1"></canvas>
+
+<script type="text/javascript">
+<!--
+		
+	var flashvars = {}; 
+    flashvars["debug"] 				= <?php echo $configuration->flash->debug ? 'true' : 'false' ?>; 
+    flashvars["local"] 				= <?php echo $configuration->flash->mode == "local" ? 'true' : 'false' ?>;
+    
+    flashvars["language"] 			= "<?php echo $rckdt_registry->get('language') ?>";
+    flashvars["country"] 			= "<?php echo $rckdt_registry->get('country') ?>";
+    flashvars["locale"] 			= "<?php echo $rckdt_registry->get('locale') ?>";
+    
+    flashvars["host_frontend"] 		= "<?php echo $this->baseUrl('/') ?>";
+    flashvars["version"] 			= "<?php echo $configuration->flash->version->app ?>";
+    flashvars["protocol"] 			= "<?php echo $rckdt_registry->get('protocol') ?>";
+    flashvars["app_data"] 			= "<?php echo $rckdt_registry->get('app_data') ?>"; 
+    
+}
+
+//-->
+</script>
+
+<!-- flash END -->
